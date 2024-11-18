@@ -3,29 +3,28 @@ Description: CloudFormation template to enable default Lake Formation tags, perm
 
 
 Parameters:
-  Owner: 
-    Type: String
-    Description: Owner of the Service Catalog portfolio
-    MinLength: 3
-    MaxLength: 63
-    AllowedPattern: '^[a-z0-9.-]+$'
-    ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
-
   ProviderName: 
     Type: String
     Description: Provider name of the Service Catalog portfolio
     MinLength: 3
     MaxLength: 63
-    AllowedPattern: '^[a-z0-9.-]+$'
-    ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
+    AllowedPattern: '^[a-zA-Z0-9.-]+$'
+    ConstraintDescription: "must be an alphanumeric string with hyphens and periods, between 3 and 63 characters."
     Default: Cloud2
 
-  UserRoles:
-    Type: List<String>
-    Description: List of roles that need access to the portfolio.
-    AllowedValues:
-      - 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
-      - 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
+  AdminRole:
+    Type: String
+    Description: Role that has admin access to the portfolio.
+    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
+  
+  ReadOnlyRole:
+    Type: String
+    Description: Role that has read-only access to the portfolio.
+    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
+
+Conditions:
+  HasAdminRole: !Not [ !Equals [ !Ref AdminRole, "" ] ]
+  HasReadOnlyRole: !Not [ !Equals [ !Ref ReadOnlyRole, "" ] ]
 
 Resources:
   LFTagCanRead:
@@ -96,12 +95,20 @@ Resources:
     Properties:
       DisplayName: DataManagement
       ProviderName: !Ref ProviderName
-      Owner: !Ref Owner
       Description: Portfolio for managing data services
 
-  PortfolioUserRoleAssociations:
+  PortfolioAdminAssociation:
     Type: AWS::ServiceCatalog::PortfolioPrincipalAssociation
+    Condition: HasAdminRole
     Properties:
       PortfolioId: !Ref DataManagementPortfolio
-      PrincipalARN: !Ref UserRoles
+      PrincipalARN: !Ref AdminRole
+      PrincipalType: IAM
+
+  PortfolioReadOnlyAssociation:
+    Type: AWS::ServiceCatalog::PortfolioPrincipalAssociation
+    Condition: HasReadOnlyRole
+    Properties:
+      PortfolioId: !Ref DataManagementPortfolio
+      PrincipalARN: !Ref ReadOnlyRole
       PrincipalType: IAM

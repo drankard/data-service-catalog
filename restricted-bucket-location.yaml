@@ -39,7 +39,7 @@ Resources:
   LocationBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${Prefix}-${Name}-${AWS::AccountId}'
+      BucketName: !Sub '${Prefix}-${LocationName}-${AWS::AccountId}'
       AccessControl: Private
 
   BucketPolicy:
