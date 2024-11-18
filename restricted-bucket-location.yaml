@@ -3,20 +3,25 @@ Description: CloudFormation template to create an S3 bucket location with specif
 
 Parameters:
 
-  UserRoles:
-    Type: List<String>
-    Description: List of roles that need access to the location.
-    AllowedValues:
-      - 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
-      - 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
+  AdminRole:
+    Type: String
+    Description: Role that has admin access to the location.
+    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
+  
+  ReadOnlyRole:
+    Type: String
+    Description: Role that has read-only access to the location.
+    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
 
-  ServiceRoles:
-    Type: List<String>
-    Description: List of service roles that need access to the location.
-    AllowedValues:
-      - 'arn:aws:iam::907826444281:role/DataBrewServiceRole'
-      - 'arn:aws:iam::907826444281:role/GlueServiceRole'
+  DataBrewServiceRole:
+    Type: String
+    Description: Role that has access to AWS DataBrew.
+    Default: 'arn:aws:iam::907826444281:role/DataBrewServiceRole'
 
+  GlueServiceRole:
+    Type: String
+    Description: Role that has access to AWS Glue.
+    Default: 'arn:aws:iam::907826444281:role/GlueServiceRole'
 
   Prefix:
     Type: String
@@ -35,6 +40,12 @@ Parameters:
     AllowedPattern: '^[a-z0-9.-]+$'
     ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
 
+Conditions:
+  HasAdminRole: !Not [ !Equals [ !Ref AdminRole, "" ] ]
+  HasReadOnlyRole: !Not [ !Equals [ !Ref ReadOnlyRole, "" ] ]
+  HasDataBrewServiceRole: !Not [ !Equals [ !Ref DataBrewServiceRole, "" ] ]
+  HasGlueServiceRole: !Not [ !Equals [ !Ref GlueServiceRole, "" ] ]
+
 Resources:
   LocationBucket:
     Type: AWS::S3::Bucket
@@ -49,27 +60,43 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: UserAccess
+          - Sid: AdminRoleAccess
             Effect: Allow
             Principal:
-              AWS: !Ref UserRoles
+              AWS: !If [ HasAdminRole, !Ref AdminRole, !Ref "AWS::NoValue" ]
+            Action:
+              - 's3:*'
+            Resource:
+              - !GetAtt LocationBucket.Arn
+              - !Sub '${LocationBucket.Arn}/*'
+          - Sid: ReadOnlyRoleAccess
+            Effect: Allow
+            Principal:
+              AWS: !If [ HasReadOnlyRole, !Ref ReadOnlyRole, !Ref "AWS::NoValue" ]
+            Action:
+              - 's3:*'
+            Resource:
+              - !GetAtt LocationBucket.Arn
+              - !Sub '${LocationBucket.Arn}/*'
+          - Sid: DataBrewServiceRoleAccess
+            Effect: Allow
+            Principal:
+              AWS: !If [ HasDataBrewServiceRole, !Ref DataBrewServiceRole, !Ref "AWS::NoValue" ]
+            Action:
+              - 's3:*'
+            Resource:
+              - !GetAtt LocationBucket.Arn
+              - !Sub '${LocationBucket.Arn}/*'
+          - Sid: GlueServiceRoleAccess
+            Effect: Allow
+            Principal:
+              AWS: !If [ HasGlueServiceRole, !Ref GlueServiceRole, !Ref "AWS::NoValue" ]
             Action:
               - 's3:*'
             Resource:
               - !GetAtt LocationBucket.Arn
               - !Sub '${LocationBucket.Arn}/*'
 
-          - Sid: ServiceRolesAccess
-            Effect: Allow
-            Principal:
-              AWS: !Ref ServiceRoles
-            Action:
-              - 's3:GetObject'
-              - 's3:PutObject'
-              - 's3:ListBucket'
-            Resource:
-              - !GetAtt LocationBucket.Arn
-              - !Sub '${LocationBucket.Arn}/*'
 
   LakeFormationResource:
     Type: AWS::LakeFormation::Resource
@@ -77,22 +104,49 @@ Resources:
       ResourceArn: !GetAtt LocationBucket.Arn
       UseServiceLinkedRole: true
 
-  LakeFormationPermissionsUserRoles:
+
+  LakeFormationPermissionsAdminRole:
     Type: AWS::LakeFormation::Permissions
+    Conditions: HasAdminRole
     Properties:
       DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Ref UserRoles
+        DataLakePrincipalIdentifier: !Ref AdminRole
       Resource:
         DataLocationResource:
           S3Resource: !GetAtt LocationBucket.Arn
       Permissions:
         - DATA_LOCATION_ACCESS
 
-  LakeFormationPermissionsServiceRoles:
+  LakeFormationPermissionsReadOnlyRole:
     Type: AWS::LakeFormation::Permissions
+    Conditions: HasReadOnlyRole
     Properties:
       DataLakePrincipal:
-        DataLakePrincipalIdentifier: !Ref ServiceRoles
+        DataLakePrincipalIdentifier: !Ref ReadOnlyRole
+      Resource:
+        DataLocationResource:
+          S3Resource: !GetAtt LocationBucket.Arn
+      Permissions:
+        - DATA_LOCATION_ACCESS
+
+  LakeFormationPermissionsDataBrewServiceRole:
+    Type: AWS::LakeFormation::Permissions
+    Conditions: HasDataBrewServiceRole
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Ref DataBrewServiceRole
+      Resource:
+        DataLocationResource:
+          S3Resource: !GetAtt LocationBucket.Arn
+      Permissions:
+        - DATA_LOCATION_ACCESS
+  
+  LakeFormationPermissionsGlueServiceRole:
+    Type: AWS::LakeFormation::Permissions
+    Conditions: HasGlueServiceRole
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Ref GlueServiceRole
       Resource:
         DataLocationResource:
           S3Resource: !GetAtt LocationBucket.Arn
