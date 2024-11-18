@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to set up restricted launch constraints for Service Catalog, enabling Lake Formation admin permissions and other necessary permissions.
+
+Resources:
+  ServiceCatalogLaunchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ServiceCatalogLaunchRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - servicecatalog.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LakeFormationPermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: LakeFormationPermissions
+                Effect: Allow
+                Action:
+                  - lakeformation:*
+                Resource: '*'
+              - Sid: S3Permissions
+                Effect: Allow
+                Action:
+                  - s3:*
+                Resource: '*'
+              - Sid: IAMPermissions
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                  - iam:GetRole
+                  - iam:DetachRolePolicy
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                  - iam:CreateRole
+                  - iam:AttachRolePolicy
+                Resource: '*'
+              - Sid: GluePermissions
+                Effect: Allow
+                Action:
+                  - glue:*
+                Resource: '*'
+              - Sid: DataBrewPermissions
+                Effect: Allow
+                Action:
+                  - databrew:*
+                Resource: '*'
+              - Sid: CloudFormationPermissions
+                Effect: Allow
+                Action:
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:DescribeStacks
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:UpdateStack
+                Resource: '*'
+              - Sid: ServiceCatalogPermissions
+                Effect: Allow
+                Action:
+                  - servicecatalog:DescribeProduct
+                  - servicecatalog:DescribeProductView
+                  - servicecatalog:DescribeProvisioningParameters
+                  - servicecatalog:ProvisionProduct
+                  - servicecatalog:DescribeRecord
+                Resource: '*'
+
+  DataLakeSettings:
+    Type: AWS::LakeFormation::DataLakeSettings
+    Properties:
+      Admins:
+        - DataLakePrincipalIdentifier: !GetAtt ServiceCatalogLaunchRole.Arn

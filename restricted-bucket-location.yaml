@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create an S3 bucket location with specified access permissions.
+
+Parameters:
+
+  UserRoles:
+    Type: List<String>
+    Description: List of roles that need access to the location.
+    AllowedValues:
+      - 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
+      - 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
+
+  ServiceRoles:
+    Type: List<String>
+    Description: List of service roles that need access to the location.
+    AllowedValues:
+      - 'arn:aws:iam::907826444281:role/DataBrewServiceRole'
+      - 'arn:aws:iam::907826444281:role/GlueServiceRole'
+
+
+  Prefix:
+    Type: String
+    Default: data
+    Description: Prefix for the location
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9.-]+$'
+    ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
+      
+  LocationName:
+    Type: String
+    Description: Name of the the location.
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9.-]+$'
+    ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
+
+Resources:
+  LocationBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${Prefix}-${Name}-${AWS::AccountId}'
+      AccessControl: Private
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref LocationBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: UserAccess
+            Effect: Allow
+            Principal:
+              AWS: !Ref UserRoles
+            Action:
+              - 's3:*'
+            Resource:
+              - !GetAtt LocationBucket.Arn
+              - !Sub '${LocationBucket.Arn}/*'
+
+          - Sid: ServiceRolesAccess
+            Effect: Allow
+            Principal:
+              AWS: !Ref ServiceRoles
+            Action:
+              - 's3:GetObject'
+              - 's3:PutObject'
+              - 's3:ListBucket'
+            Resource:
+              - !GetAtt LocationBucket.Arn
+              - !Sub '${LocationBucket.Arn}/*'
+
+  LakeFormationResource:
+    Type: AWS::LakeFormation::Resource
+    Properties:
+      ResourceArn: !GetAtt LocationBucket.Arn
+      UseServiceLinkedRole: true
+
+  LakeFormationPermissionsUserRoles:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Ref UserRoles
+      Resource:
+        DataLocationResource:
+          S3Resource: !GetAtt LocationBucket.Arn
+      Permissions:
+        - DATA_LOCATION_ACCESS
+
+  LakeFormationPermissionsServiceRoles:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier: !Ref ServiceRoles
+      Resource:
+        DataLocationResource:
+          S3Resource: !GetAtt LocationBucket.Arn
+      Permissions:
+        - DATA_LOCATION_ACCESS

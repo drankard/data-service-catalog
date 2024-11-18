@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create an S3 bucket location with no constraints.
+
+Parameters:
+  Prefix:
+    Type: String
+    Default: dataset
+    Description: Prefix for the location
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9.-]+$'
+    ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
+      
+  LocationName:
+    Type: String
+    Description: Name of the the location.
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: '^[a-z0-9.-]+$'
+    ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
+
+Resources:
+  LocationBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${Prefix}-${Name}-${AWS::AccountId}'
+      AccessControl: Private
+

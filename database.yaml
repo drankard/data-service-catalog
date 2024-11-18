@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  DatabaseName:
+    Type: String
+    Description: Name of the Lake Formation database
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: "^[a-z0-9.-]+$"
+
+  Prefix:
+    Type: String
+    Default: database
+    Description: Prefix for the database name
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: "^[a-z0-9.-]+$"
+    ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
+
+  Description:
+    Type: String
+    Description: Description of the database
+    MinLength: 3
+    MaxLength: 255
+
+Resources:
+  LakeFormationDatabase:
+    Type: "AWS::Glue::Database"
+    Properties:
+      CatalogId: !Ref "AWS::AccountId"
+      DatabaseInput:
+        Name: !Sub "${Prefix}-${DatabaseName}-${AWS::AccountId}"
+        Description: !Ref Description
