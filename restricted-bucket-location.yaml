@@ -3,25 +3,13 @@ Description: CloudFormation template to create an S3 bucket location with specif
 
 Parameters:
 
-  AdminRole:
+  AccessRole:
     Type: String
-    Description: Role that has admin access to the location.
-    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
-  
-  ReadOnlyRole:
-    Type: String
-    Description: Role that has read-only access to the location.
-    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
-
-  DataBrewServiceRole:
-    Type: String
-    Description: Role that has access to AWS DataBrew.
-    Default: 'arn:aws:iam::907826444281:role/DataBrewServiceRole'
-
-  GlueServiceRole:
-    Type: String
-    Description: Role that has access to AWS Glue.
-    Default: 'arn:aws:iam::907826444281:role/GlueServiceRole'
+    Description: Role that has access to the location.
+    AllowedValues:
+      - 'BIAdmin'
+      - 'Payroll'
+    Default: 'BIAdmin'
 
   Prefix:
     Type: String
@@ -40,11 +28,16 @@ Parameters:
     AllowedPattern: '^[a-z0-9.-]+$'
     ConstraintDescription: "must be a lowercase alphanumeric string with hyphens and periods, between 3 and 63 characters."
 
-Conditions:
-  HasAdminRole: !Not [ !Equals [ !Ref AdminRole, "" ] ]
-  HasReadOnlyRole: !Not [ !Equals [ !Ref ReadOnlyRole, "" ] ]
-  HasDataBrewServiceRole: !Not [ !Equals [ !Ref DataBrewServiceRole, "" ] ]
-  HasGlueServiceRole: !Not [ !Equals [ !Ref GlueServiceRole, "" ] ]
+Mappings:
+  RoleNameToRoleArn:
+    BIAdmin:
+      Arn: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
+    Payroll:
+      Arn: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
+    DataBrewServiceRole:
+      Arn: 'arn:aws:iam::907826444281:role/DataBrewServiceRole'
+    GlueServiceRole:
+      Arn: 'arn:aws:iam::907826444281:role/GlueServiceRole'
 
 Resources:
   LocationBucket:
@@ -60,19 +53,10 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: AdminRoleAccess
+          - Sid: AccessRolePolicy
             Effect: Allow
             Principal:
-              AWS: !If [ HasAdminRole, !Ref AdminRole, !Ref "AWS::NoValue" ]
-            Action:
-              - 's3:*'
-            Resource:
-              - !GetAtt LocationBucket.Arn
-              - !Sub '${LocationBucket.Arn}/*'
-          - Sid: ReadOnlyRoleAccess
-            Effect: Allow
-            Principal:
-              AWS: !If [ HasReadOnlyRole, !Ref ReadOnlyRole, !Ref "AWS::NoValue" ]
+              AWS: !FindInMap [ RoleNameToRoleArn, !Ref AccessRole, Arn ]
             Action:
               - 's3:*'
             Resource:
@@ -81,7 +65,7 @@ Resources:
           - Sid: DataBrewServiceRoleAccess
             Effect: Allow
             Principal:
-              AWS: !If [ HasDataBrewServiceRole, !Ref DataBrewServiceRole, !Ref "AWS::NoValue" ]
+              AWS: !FindInMap [ RoleNameToRoleArn, DataBrewServiceRole, Arn ]
             Action:
               - 's3:*'
             Resource:
@@ -90,7 +74,7 @@ Resources:
           - Sid: GlueServiceRoleAccess
             Effect: Allow
             Principal:
-              AWS: !If [ HasGlueServiceRole, !Ref GlueServiceRole, !Ref "AWS::NoValue" ]
+              AWS: !FindInMap [ RoleNameToRoleArn, GlueServiceRole, Arn ]
             Action:
               - 's3:*'
             Resource:

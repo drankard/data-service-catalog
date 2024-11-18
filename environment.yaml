@@ -1,37 +1,32 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: CloudFormation template to enable default Lake Formation tags, permissions, and audit logging.
 
-
 Parameters:
-  ProviderName: 
+  ProviderName:
     Type: String
     Description: Provider name of the Service Catalog portfolio
     MinLength: 3
     MaxLength: 63
-    AllowedPattern: '^[a-zA-Z0-9.-]+$'
+    AllowedPattern: "^[a-zA-Z0-9.-]+$"
     ConstraintDescription: "must be an alphanumeric string with hyphens and periods, between 3 and 63 characters."
     Default: Cloud2
 
-  AdminRole:
+  BIAdminRoleArn:
     Type: String
-    Description: Role that has admin access to the portfolio.
-    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989'
-  
-  ReadOnlyRole:
-    Type: String
-    Description: Role that has read-only access to the portfolio.
-    Default: 'arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc'
+    Description: Role that has BIAccess
+    Default: "arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSAdministratorAccess_0c86b59f2b52e989"
 
-Conditions:
-  HasAdminRole: !Not [ !Equals [ !Ref AdminRole, "" ] ]
-  HasReadOnlyRole: !Not [ !Equals [ !Ref ReadOnlyRole, "" ] ]
+  PayrollRoleArn:
+    Type: String
+    Description: Role that has PayrollAccess
+    Default: "arn:aws:iam::907826444281:role/aws-reserved/sso.amazonaws.com/eu-west-1/AWSReservedSSO_AWSReadOnlyAccess_825469f2680a35bc"
 
 Resources:
   LFTagCanRead:
     Type: AWS::LakeFormation::Tag
     Properties:
       TagKey: CanRead
-      TagValues: 
+      TagValues:
         - Enduser
         - BIAdmin
         - Payroll
@@ -40,7 +35,7 @@ Resources:
     Type: AWS::LakeFormation::Tag
     Properties:
       TagKey: CanAdmin
-      TagValues: 
+      TagValues:
         - Enduser
         - BIAdmin
         - Payroll
@@ -49,14 +44,14 @@ Resources:
     Type: AWS::LakeFormation::Tag
     Properties:
       TagKey: QSVisible
-      TagValues: 
+      TagValues:
         - false
         - true
 
   AuditLogBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${AWS::AccountId}-data-audit-logs'
+      BucketName: !Sub "${AWS::AccountId}-data-audit-logs"
       VersioningConfiguration:
         Status: Enabled
 
@@ -65,7 +60,22 @@ Resources:
     Properties:
       RoleName: DataBrewServiceRole
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: databrew.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueDataBrewServiceRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+  PayrollDataBrewServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: PayrollDataBrewServiceRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -80,7 +90,22 @@ Resources:
     Properties:
       RoleName: GlueServiceRole
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+  PayrollGlueServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: PayrollGlueServiceRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -97,18 +122,16 @@ Resources:
       ProviderName: !Ref ProviderName
       Description: Portfolio for managing data services
 
-  PortfolioAdminAssociation:
+  PortfolioBIAdminAssociation:
     Type: AWS::ServiceCatalog::PortfolioPrincipalAssociation
-    Condition: HasAdminRole
     Properties:
       PortfolioId: !Ref DataManagementPortfolio
-      PrincipalARN: !Ref AdminRole
+      PrincipalARN: !Ref BIAdminRoleArn
       PrincipalType: IAM
 
-  PortfolioReadOnlyAssociation:
+  PortfolioPayrollAssociation:
     Type: AWS::ServiceCatalog::PortfolioPrincipalAssociation
-    Condition: HasReadOnlyRole
     Properties:
       PortfolioId: !Ref DataManagementPortfolio
-      PrincipalARN: !Ref ReadOnlyRole
+      PrincipalARN: !Ref PayrollRoleArn
       PrincipalType: IAM
