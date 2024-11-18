@@ -107,7 +107,7 @@ Resources:
 
   LakeFormationPermissionsAdminRole:
     Type: AWS::LakeFormation::Permissions
-    Conditions: HasAdminRole
+    Condition: HasAdminRole
     Properties:
       DataLakePrincipal:
         DataLakePrincipalIdentifier: !Ref AdminRole
@@ -119,7 +119,7 @@ Resources:
 
   LakeFormationPermissionsReadOnlyRole:
     Type: AWS::LakeFormation::Permissions
-    Conditions: HasReadOnlyRole
+    Condition: HasReadOnlyRole
     Properties:
       DataLakePrincipal:
         DataLakePrincipalIdentifier: !Ref ReadOnlyRole
@@ -131,7 +131,7 @@ Resources:
 
   LakeFormationPermissionsDataBrewServiceRole:
     Type: AWS::LakeFormation::Permissions
-    Conditions: HasDataBrewServiceRole
+    Condition: HasDataBrewServiceRole
     Properties:
       DataLakePrincipal:
         DataLakePrincipalIdentifier: !Ref DataBrewServiceRole
@@ -143,7 +143,7 @@ Resources:
   
   LakeFormationPermissionsGlueServiceRole:
     Type: AWS::LakeFormation::Permissions
-    Conditions: HasGlueServiceRole
+    Condition: HasGlueServiceRole
     Properties:
       DataLakePrincipal:
         DataLakePrincipalIdentifier: !Ref GlueServiceRole
